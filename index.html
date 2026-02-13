@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Catch the Kiss - Developed by MIRAZ</title>
+    <style>
+        :root {
+            --bg-color: #fff0f3;
+            --primary-pink: #ff4d6d;
+            --dark-pink: #c9184a;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100vh;
+            width: 100vw;
+            user-select: none;
+            touch-action: none;
+        }
+
+        .ui-panel {
+            display: flex;
+            justify-content: space-around;
+            width: 90%;
+            max-width: 400px;
+            margin-top: 10px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: var(--dark-pink);
+            background: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            z-index: 10;
+        }
+
+        #game-container {
+            position: relative;
+            width: 95%;
+            max-width: 500px;
+            height: calc(100vh - 120px);
+            max-height: 700px;
+            background: white;
+            border: 4px solid var(--primary-pink);
+            border-radius: 20px;
+            margin: 10px auto;
+            overflow: hidden;
+            cursor: crosshair;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .item {
+            position: absolute;
+            font-size: 40px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 65px;
+            height: 65px;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 5;
+        }
+
+        @media (min-width: 768px) {
+            .item { font-size: 50px; width: 80px; height: 80px; }
+            .ui-panel { font-size: 1.5rem; margin-top: 20px; }
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); }
+            100% { transform: scale(1); }
+        }
+
+        #message-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 77, 109, 0.98);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 100;
+            text-align: center;
+            padding: 15px;
+        }
+
+        .instructions {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 15px;
+            margin: 10px 0;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            font-size: 1.1rem;
+            line-height: 1.4;
+            width: 80%;
+        }
+
+        .funny-msg {
+            font-style: italic;
+            margin-top: 10px;
+            font-size: 1.1rem;
+            padding: 0 10px;
+        }
+
+        button {
+            padding: 12px 35px;
+            font-size: 1.1rem;
+            background: white;
+            color: var(--primary-pink);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            transition: 0.2s;
+        }
+
+        button:active { transform: scale(0.95); }
+
+        .developer-tag {
+            margin-top: 20px;
+            font-size: 0.8rem;
+            letter-spacing: 2px;
+            opacity: 0.9;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .floating-text {
+            position: absolute;
+            font-weight: bold;
+            font-size: 1.2rem;
+            pointer-events: none;
+            animation: moveUp 0.8s ease-out forwards;
+            z-index: 20;
+        }
+
+        @keyframes moveUp {
+            to { transform: translateY(-60px); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ui-panel">
+        <div>Score: <span id="score">0</span></div>
+        <div>Time: <span id="timer">30</span>s</div>
+    </div>
+
+    <div id="game-container">
+        <div id="message-overlay">
+            <h1 style="font-size: 2rem; margin: 0;">Happy Kiss Day! 💋</h1>
+            
+            <div class="instructions">
+                Touch the 💋 to Win. <br>
+                💋 = +10 <br>
+                😡 = -30
+            </div>
+
+            <button onclick="startGame()">START GAME</button>
+            
+            <div class="developer-tag">Developed by MIRAZ</div>
+        </div>
+    </div>
+
+    <script>
+        let score = 0;
+        let timeLeft = 30;
+        let gameActive = false;
+        let spawnInterval;
+        let timerInterval;
+
+        const container = document.getElementById('game-container');
+        const scoreElement = document.getElementById('score');
+        const timerElement = document.getElementById('timer');
+        const overlay = document.getElementById('message-overlay');
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                if (type === 'pop') {
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.1);
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.1);
+                } else if (type === 'buzz') {
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(150, audioCtx.currentTime);
+                    oscillator.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.2);
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.2);
+                }
+            } catch(e) { console.log("Audio error"); }
+        }
+
+        function startGame() {
+            score = 0;
+            timeLeft = 30;
+            gameActive = true;
+            scoreElement.innerText = score;
+            timerElement.innerText = timeLeft;
+            overlay.style.display = 'none';
+
+            const items = document.querySelectorAll('.item');
+            items.forEach(item => item.remove());
+
+            spawnInterval = setInterval(createItem, 500);
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            timeLeft--;
+            timerElement.innerText = timeLeft;
+            if (timeLeft <= 0) endGame();
+        }
+
+        function createItem() {
+            if (!gameActive) return;
+
+            const item = document.createElement('div');
+            item.className = 'item';
+            
+            const rand = Math.random();
+            let type = 'kiss';
+            if (rand > 0.75) {
+                type = 'angry';
+                item.innerHTML = '😡';
+            } else if (rand > 0.4) {
+                type = 'heart';
+                item.innerHTML = '❤️';
+            } else {
+                item.innerHTML = '💋';
+            }
+
+            const itemSize = 70;
+            const x = Math.random() * (container.clientWidth - itemSize);
+            const y = Math.random() * (container.clientHeight - itemSize);
+            
+            item.style.left = x + 'px';
+            item.style.top = y + 'px';
+
+            const handleEvent = (e) => {
+                e.preventDefault();
+                handleCatch(type, x, y, item);
+            };
+
+            item.addEventListener('mousedown', handleEvent);
+            item.addEventListener('touchstart', handleEvent);
+
+            container.appendChild(item);
+
+            setTimeout(() => {
+                if (item.parentElement) item.remove();
+            }, 1000);
+        }
+
+        function handleCatch(type, x, y, element) {
+            if (!element.parentElement) return;
+            
+            const feedback = document.createElement('div');
+            feedback.className = 'floating-text';
+            feedback.style.left = x + 'px';
+            feedback.style.top = y + 'px';
+
+            if (type === 'angry') {
+                playSound('buzz');
+                score -= 30;
+                feedback.innerText = '-30 😡';
+                feedback.style.color = 'black';
+            } else {
+                playSound('pop');
+                score += 10;
+                feedback.innerText = '+10 💋';
+                feedback.style.color = '#ff4d6d';
+            }
+
+            scoreElement.innerText = score;
+            container.appendChild(feedback);
+            element.remove();
+            
+            setTimeout(() => feedback.remove(), 800);
+        }
+
+        function endGame() {
+            gameActive = false;
+            clearInterval(spawnInterval);
+            clearInterval(timerInterval);
+
+            // Funny messages list
+            const messages = [
+                "Vai, apni to bhaloi flying kiss dhorchen! 💋",
+                "Maari dilaam kopaal, score to bhaloi! 😂",
+                "Ragi emoji-te keno guta den? Shanti nai? 😡",
+                "Apni ki pro leveler kisser naki? 😜",
+                "Bhai, thak ekhon, thont phuila jaibo! 💋",
+                "Score to joss! Miraz vai khushi hoise! 😎",
+                "Arre vai vai vai! Kiss dhorar ostad apni! 💋",
+                "Angry emoji te click kore keno kopal puran? 😂",
+                "Ekdom fatiye diyechen! Next time aro bhalo score chai! 🚀"
+            ];
+            
+            const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+            
+            overlay.innerHTML = `
+                <h1 style="font-size: 1.8rem;">Game Over!</h1>
+                <p style="font-size: 1.3rem; font-weight: bold;">Your Score: ${score}</p>
+                <p class="funny-msg">"${randomMsg}"</p>
+                <button onclick="startGame()">Play Again</button>
+                <div class="developer-tag">Developed by MIRAZ</div>
+            `;
+            overlay.style.display = 'flex';
+        }
+    </script>
+</body>
+</html>
